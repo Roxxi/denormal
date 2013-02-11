@@ -1,9 +1,7 @@
 (ns denormal.core
   (:use
    roxxi.utils.core
-   ;roxxi.utils.map
-    ;    roxxi.utils.print
-        jsonschema.type-system.extract))
+   jsonschema.type-system.extract))
 
 
 ;; TODO make one for JSON
