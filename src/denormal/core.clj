@@ -1,6 +1,6 @@
 (ns denormal.core
   (:use
-   roxxi.utils.core
+   roxxi.utils.collections
    jsonschema.type-system.extract))
 
 
@@ -81,15 +81,6 @@
 (defn make-arr-idx-iden [iden]
   (keyword (str (name iden) array-idx-suffix)))
 
-(defn cross [& seqs]
-  (when seqs
-    (if-let [s (first seqs)]
-      (if-let [ss (next seqs)]
-        (for [x  s
-              ys (apply cross ss)]
-          (cons x ys))
-        (map list s)))))
-
 
 (defn hoist-arrays [dearrayed-json array-mappings]
   (let [the-keys (map key array-mappings)
@@ -122,13 +113,7 @@
 
 (println rec)
 
-(defn every [pred coll]
-  (loop [coll (seq coll)]    
-    (if (empty? coll)
-      true
-      (if (pred (first coll))
-        (recur (next coll))
-        false))))
+
 
 
                                               
@@ -152,11 +137,4 @@
                (concat (filter settled? tabularized-jsons) settled-jsons))))))
             
 (def tabularized (tabularize-json rec))
-
-
-
-        
-        
-           
-  
 
