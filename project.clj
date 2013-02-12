@@ -1,4 +1,4 @@
-(defproject denormal "0.1.0-SNAPSHOT"
+(defproject denormal "0.1.0"
   :description "Denormalizes JSON into single rows of data."
   :url "none-at-the-moment"
   :license {:name "GNU General Public License Version 3"
