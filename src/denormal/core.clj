@@ -1,12 +1,13 @@
 (ns denormal.core
   (:use
+   roxxi.utils.print
    roxxi.utils.collections
    jsonschema.type-system.extract))
 
 
-;; TODO make one for JSON
-(def json-predicator (clojure-predicator))
+(def clj-map-predicator (clojure-predicator))
 
+;; TODO defmacro these three things.
 (defn make-scalar? [pred]
   (fn [val]
     (or (null? pred val)
@@ -14,7 +15,7 @@
         (num? pred val)
         (str? pred val))))
 
-(defn make-array? [pred]
+(defn make-coll? [pred]
   (fn [val]
     (collection? pred val)))
 
@@ -22,9 +23,9 @@
   (fn [val]
     (document? pred val)))
 
-(def scalar? (make-scalar? json-predicator))
-(def array? (make-array? json-predicator))
-(def map? (make-map? json-predicator))
+(def scalar? (make-scalar? clj-map-predicator))
+(def a-coll? (make-coll? clj-map-predicator))
+(def a-map? (make-map? clj-map-predicator))
 
 ;; foo? => fn(keyval => keyval) if (foo? (val keyval))
 ;; convenient for filtering key-value pairs from a map
@@ -33,30 +34,32 @@
     (and (foo? (val keyval)) keyval)))
 
 (def scalar-value? (make-foo-value? scalar?))
-(def array-value? (make-foo-value? array?))
-(def map-value? (make-foo-value? map?))
+(def coll-value? (make-foo-value? a-coll?))
+(def map-value? (make-foo-value? a-map?))
       
 (defn filter-foos [foo-value?]
-  (fn [json]
-    (extract-map (filter foo-value? json)
+  (fn [some-map]
+    (extract-map (filter foo-value? some-map)
                  :key-extractor key
                  :value-extractor val)))
 
 (def filter-scalars (filter-foos scalar-value?))
 (def filter-maps (filter-foos map-value?))
-(def filter-arrays (filter-foos array-value?))
+(def filter-colls (filter-foos coll-value?))
   
 ;; # Flattening Nested documents / maps
-
+;; TODO Externalize configuration
 (def subproperty-connector "_dot_")
 (defn make-subprop-iden [prefix suffix]
   (keyword (str (name prefix) subproperty-connector (name suffix))))
 
-(defn hoist-maps [demapped-json map-mappings]
+(defn hoist-maps [demapped-map map-mappings]
+  "demapped-maps are maps with no submappings :) e.g. {:a {:c :d}} is not
+   a demapped-map, but {:a_dot_c :d} is now demapped"
   (loop [map-mappings map-mappings
-         map-hoisted-json demapped-json]
+         map-hoisted-map demapped-map]
       (if (empty? map-mappings)
-        map-hoisted-json
+        map-hoisted-map
         ;; for the prior key that was pointing to this map, prefix
         ;; each of its inner keys with the higher level key
         (recur
@@ -68,73 +71,65 @@
                   (assoc outer-map
                     (make-subprop-iden base-key-string (key inner-keyval))
                    (val inner-keyval)))]
-           (reduce add-hoisted-key-key-val map-hoisted-json sub-map))))))
+           (reduce add-hoisted-key-key-val map-hoisted-map sub-map))))))
 
 
-;; # Flattening arrays
-
-(def array-suffix "_arr")
+;; # Flattening colls
+;; TODO Externalize configuration
+(def coll-suffix "_arr")
 (defn make-arr-iden [iden]
-  (keyword (str (name iden) array-suffix)))
+  (keyword (str (name iden) coll-suffix)))
 
-(def array-idx-suffix "_idx")
+(def coll-idx-suffix "_idx")
 (defn make-arr-idx-iden [iden]
-  (keyword (str (name iden) array-idx-suffix)))
+  (keyword (str (name iden) coll-idx-suffix)))
 
 
-(defn hoist-arrays [dearrayed-json array-mappings]
-  (let [the-keys (map key array-mappings)
-        the-arrays (map val array-mappings)
-        the-idxes (map (comp range count) the-arrays)
-        assoc-vals-n-idxs
-        (fn assoc-vals-n-idxs [vals idxs]
-          (persistent!
-           (loop [json (transient dearrayed-json)
-                  keys the-keys
-                  vals vals
-                  idxs idxs]
-             (if-let [key (first keys)]
-               (let [val (first vals)
-                     idx (first idxs)
-                     json-with-val (assoc! json (make-arr-iden key) val)
-                     json-with-idx-n-val (assoc! json-with-val (make-arr-idx-iden key) idx)]
-                 (recur json-with-idx-n-val
-                        (rest the-keys)
-                        (rest vals)
-                        (rest idxs)))
-               json))))]
-    (map assoc-vals-n-idxs (apply cross the-arrays) (apply cross the-idxes))))
-
-(def rec {:a "hello" :b 5 :c true :d [1 2 3] :e {:a 1 :b 2} :f {:g 1 :h 2} :f_array {:some-array [1 2 3] :h 2}})
-(filter-scalars rec)
-(filter-maps rec)
-(filter-arrays rec)
-
-
-(println rec)
-
-
+(defn hoist-colls [decolled-map coll-mappings]
+  (if (empty? coll-mappings)
+    (list decolled-map)
+    (let [the-keys (map key coll-mappings)
+          the-colls (map val coll-mappings)
+          the-idxes (map (comp range count) the-colls)
+          assoc-vals-n-idxs
+          (fn assoc-vals-n-idxs [vals idxs]
+            (persistent!
+             (loop [some-map (transient decolled-map)
+                    keys the-keys
+                    vals vals
+                    idxs idxs]
+               (if-let [key (first keys)]
+                 (let [val (first vals)
+                       idx (first idxs)
+                       map-with-val (assoc! some-map (make-arr-iden key) val)
+                       map-with-idx-n-val (assoc! map-with-val (make-arr-idx-iden key) idx)]
+                   (recur map-with-idx-n-val
+                          (rest keys)
+                          (rest vals)
+                          (rest idxs)))
+                 some-map))))]
+      (map assoc-vals-n-idxs (apply cross the-colls) (apply cross the-idxes)))))
 
 
                                               
-;; returns a list of simpified json
-(defn hoist-complexity [json]
-  (let [scalar-json (filter-scalars json)
-        map-hoisted (hoist-maps scalar-json (filter-maps json))
-        array-hoisted (hoist-arrays  map-hoisted (filter-arrays json))]
-    array-hoisted))
+;; returns a list of maps simplified by one level
+(defn hoist-complexity [some-map]
+  (let [scalar-map (filter-scalars some-map)
+        map-hoisted (hoist-maps scalar-map (filter-maps some-map))
+        coll-hoisted (hoist-colls map-hoisted (filter-colls some-map))]
+    coll-hoisted))
 
-(defn settled? [json]
-  (every scalar-value? json))
+(defn denormal? [some-map]
+  (every scalar-value? some-map))
 
-(defn tabularize-json [json]
-  (loop [unsettled-jsons (list json)
-         settled-jsons (list)]
-    (if (empty? unsettled-jsons)
-      settled-jsons
-      (let [tabularized-jsons (mapcat hoist-complexity unsettled-jsons)]
-        (recur (filter (comp not settled?) tabularized-jsons)
-               (concat (filter settled? tabularized-jsons) settled-jsons))))))
+(defn denormalize-map [some-map]
+  (loop [normal-maps (list some-map)
+         denormal-maps (list)]
+    (if (empty? normal-maps)
+      denormal-maps
+      (let [denormalized-maps (mapcat hoist-complexity normal-maps)]
+        (recur (filter (comp not denormal?) denormalized-maps)
+               (concat (filter denormal? denormalized-maps) denormal-maps))))))
             
-(def tabularized (tabularize-json rec))
+
 
