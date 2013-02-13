@@ -130,8 +130,8 @@
 ;; returns a list of maps simplified by one level
 (defn hoist-complexity [some-map]
   (let [scalar-map (filter-scalars some-map)
-        empty-coll-hoisted (hoist-empties scalar-map (filter-empties some-map))
-        map-hoisted (hoist-maps empty-coll-hoisted (filter-maps some-map))
+        empty-hoisted (hoist-empties scalar-map (filter-empties some-map))
+        map-hoisted (hoist-maps empty-hoisted (filter-maps some-map))
         coll-hoisted (hoist-colls map-hoisted (filter-colls some-map))]
     coll-hoisted))
 
