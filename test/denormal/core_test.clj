@@ -13,15 +13,15 @@
 
 (deftest map-tests
   (testing "Nested maps:"
-    (is-denormal "An empty nested map" {:empty-map {}} (list {}))    
+    (is-denormal "An empty nested map" {:empty-map {}} (list {:empty-map nil}))    
     (is-denormal "A single nested map"
                  {:l1 {:a "hello" :b 5 :c true :d nil}}
                  (list {:l1_dot_d nil, :l1_dot_b 5,
                         :l1_dot_c true, :l1_dot_a "hello"}))
     (is-denormal "A single nested map with an empty nested map and an empty nested, nested map"
                  {:l1 {:a "hello" :b 5 :c true :d nil :empty-nested-map {}} :empty-map {}}
-                 (list {:l1_dot_d nil, :l1_dot_b 5,
-                        :l1_dot_c true, :l1_dot_a "hello"}))
+                 (list {:l1_dot_d nil, :l1_dot_c true, :l1_dot_b 5,
+                        :l1_dot_a "hello", :empty-map nil, :l1_dot_empty-nested-map nil}))
     (is-denormal "A doubley nested map"
                  {:l1 {:l2 {:a "hello" :b 5 :c true :d nil}}}
                  (list {:l1_dot_l2_dot_d nil,
@@ -69,6 +69,9 @@
                        {:scalar 200, :a_arr 3, :a_idx 2}
                        {:scalar 200, :a_arr 4, :a_idx 3}
                        {:scalar 200, :a_arr 5, :a_idx 4}))
+    (is-denormal "An Empty array inside a map"
+                 {:map {:a 200 :b []}}
+                 (list {:map_dot_a 200, :map_dot_b nil}))
     (is-denormal "Array with map with key-clash"
                  {:map {:a 200} :a [1 2 3 4 5]}
                  (list {:map_dot_a 200, :a_arr 1, :a_idx 0}
