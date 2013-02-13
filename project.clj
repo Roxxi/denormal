@@ -1,4 +1,4 @@
-(defproject roxxi/denormal "0.1.1"
+(defproject roxxi/denormal "0.1.2-SNAPSHOT"
   :description "Denormalizes JSON into single rows of data."
   :url "none-at-the-moment"
   :license {:name "GNU General Public License Version 3"
