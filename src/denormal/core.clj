@@ -12,7 +12,8 @@
   (fn [val]
     (or (null? pred val)
         (bool? pred val)
-        (num? pred val)
+        (int? pred val)
+        (real? pred val)
         (str? pred val))))
 
 (defn make-coll? [pred]
