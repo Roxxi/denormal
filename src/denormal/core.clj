@@ -3,7 +3,7 @@
    roxxi.utils.print
    roxxi.utils.collections
    jsonschema.type-system.extract
-   denormal.key-makers))
+   denormal.keys))
 
 
 (def clj-map-predicator (clojure-predicator))

@@ -1,7 +1,7 @@
-(ns denormal.key-makers-test
+(ns denormal.keys-test
   (:use
    clojure.test
-   denormal.key-makers
+   denormal.keys
    denormal.core
    roxxi.utils.print
    roxxi.utils.collections))

@@ -1,4 +1,4 @@
-(ns denormal.key-makers
+(ns denormal.keys
   (:use
    roxxi.utils.print
    roxxi.utils.collections))
