@@ -139,6 +139,10 @@
      (denormalize-map some-map
                       default-key-joiner
                       default-collection-key-maker))
+  ([some-map key-joiner]
+     (denormalize-map some-map
+                      key-joiner
+                      default-collection-key-maker))
   ([some-map key-joiner coll-key-maker]  
      (loop [normal-maps (list some-map)
             denormal-maps (list)]
