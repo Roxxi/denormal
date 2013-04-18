@@ -8,14 +8,24 @@
 
 (def clj-map-predicator (clojure-predicator))
 
-;; TODO defmacro these three things.
-(defn make-scalar? [pred]
+(defn make-null? [pred]
   (fn [val]
-    (or (null? pred val)
-        (bool? pred val)
+    (null? pred val)))
+
+;; TODO defmacro these three things.
+(defn make-non-null-scalar? [pred]
+  (fn [val]
+    (or (bool? pred val)
         (int? pred val)
         (real? pred val)
         (str? pred val))))
+
+(defn make-scalar? [pred]
+  (let [null? (make-null? pred)
+        non-null-scalar? (make-non-null-scalar? pred)]
+    (fn [val]
+      (or (null? val)
+          (non-null-scalar? val)))))    
 
 (defn make-coll? [pred]
   (fn [val]
@@ -26,6 +36,7 @@
     (document? pred val)))
 
 (def scalar? (make-scalar? clj-map-predicator))
+(def non-null-scalar? (make-non-null-scalar? clj-map-predicator))
 (def a-coll? (make-coll? clj-map-predicator))
 (def a-map? (make-map? clj-map-predicator))
 (defn empty-coll? [foo] (and (a-coll? foo) (empty? foo)))
@@ -39,6 +50,7 @@
     (and (foo? (val keyval)) keyval)))
 
 (def scalar-value? (make-foo-value? scalar?))
+(def non-null-scalar-value? (make-foo-value? non-null-scalar?))
 (def coll-value? (make-foo-value? a-coll?))
 (def map-value? (make-foo-value? a-map?))
 (def empty-value? (make-foo-value? an-empty?))
@@ -50,6 +62,7 @@
                  :value-extractor val)))
 
 (def filter-scalars (filter-foos scalar-value?))
+(def filter-non-null-scalars (filter-foos non-null-scalar-value?))
 (def filter-maps (filter-foos #(and (map-value? %) (not (empty-value? %)))))
 (def filter-colls (filter-foos #(and (coll-value? %) (not (empty-value? %)))))
 (def filter-empties (filter-foos empty-value?))
@@ -64,7 +77,7 @@
 (defn hoist-maps
   "demapped-maps are maps with no submappings :) e.g. {:a {:c :d}} is not
    a demapped-map, but {:a_dot_c :a_dot_d} is now demapped"
-  [demapped-map map-mappings key-joiner]  
+  [demapped-map map-mappings key-joiner]
   (loop [map-mappings map-mappings
          map-hoisted-map demapped-map]
       (if (empty? map-mappings)
@@ -81,7 +94,7 @@
                     (join-keys key-joiner base-key-string (key inner-keyval))
                    (val inner-keyval)))]
            (dissoc (reduce add-hoisted-key-key-val map-hoisted-map sub-map)
-                   base-key-string))))))
+                               base-key-string))))))
 
 ;; # Flattening colls
 (defn hoist-colls [decolled-map coll-mappings coll-key-maker]
@@ -118,12 +131,14 @@
 
                                               
 ;; returns a list of maps simplified by one level
-(defn hoist-complexity [some-map key-joiner coll-key-maker]
+(defn hoist-complexity [some-map key-joiner coll-key-maker remove-nulls?]
   (let [scalar-map (filter-scalars some-map)
         empty-hoisted (hoist-empties scalar-map (filter-empties some-map))
         map-hoisted (hoist-maps empty-hoisted (filter-maps some-map) key-joiner)
         coll-hoisted (hoist-colls map-hoisted (filter-colls some-map) coll-key-maker)]
-    coll-hoisted))
+    (if remove-nulls?
+        (map filter-non-null-scalars coll-hoisted)
+        coll-hoisted)))
 
 (defn denormal? [some-map]
   (every scalar-value? some-map))
@@ -134,22 +149,29 @@
 (def default-collection-key-maker
   (make-simple-coll-key-maker "_arr" "_idx"))
 
+(def default-remove-nulls? false)
+
+
 (defn denormalize-map
   ([some-map]
      (denormalize-map some-map
-                      default-key-joiner
-                      default-collection-key-maker))
+                      default-key-joiner))
   ([some-map key-joiner]
      (denormalize-map some-map
                       key-joiner
                       default-collection-key-maker))
-  ([some-map key-joiner coll-key-maker]  
+  ([some-map key-joiner coll-key-maker]
+     (denormalize-map some-map
+                      key-joiner
+                      default-collection-key-maker
+                      default-remove-nulls?))
+  ([some-map key-joiner coll-key-maker remove-nulls?]  
      (loop [normal-maps (list some-map)
             denormal-maps (list)]
        (if (empty? normal-maps)
          denormal-maps
          (let [denormalized-maps
-               (mapcat #(hoist-complexity % key-joiner coll-key-maker)
+               (mapcat #(hoist-complexity % key-joiner coll-key-maker remove-nulls?)
                        normal-maps)]
            (recur (filter (comp not denormal?) denormalized-maps)
                   (concat (filter denormal? denormalized-maps) denormal-maps)))))))

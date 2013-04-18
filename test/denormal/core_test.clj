@@ -53,6 +53,19 @@
                         :l1_map_dot_l2_a "2a",
                         :l1_a "1a"}))))
 
+(deftest maps-with-nulls-tests
+  (testing (str "We have configuration options for filtering"
+                "null fields or allowing them to pass through")
+    (let [denorm (fn [some-map remove-nulls?]
+                   (denormalize-map some-map
+                                    default-key-joiner
+                                    default-collection-key-maker
+                                    remove-nulls?))]
+      (is (= (denorm {:a nil :b 5 :c [] :d {} :e ""} false)
+             (list {:a nil, :b 5, :e "", :c nil, :d nil})))
+      (is (= (denorm {:a nil :b 5 :c [] :d {} :e ""} true) 
+             (list {:b 5, :e ""}))))))
+
 (deftest array-tests
   (testing "Nested Arrays:"
     (is-denormal "Empty array" [] (list {}))
