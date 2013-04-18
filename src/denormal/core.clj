@@ -36,7 +36,7 @@
     (document? pred val)))
 
 (def scalar? (make-scalar? clj-map-predicator))
-(def non-null-scalar? (make-non-null-scalar? clj-map-predicator))
+(def null-scalar? (make-null? clj-map-predicator))
 (def a-coll? (make-coll? clj-map-predicator))
 (def a-map? (make-map? clj-map-predicator))
 (defn empty-coll? [foo] (and (a-coll? foo) (empty? foo)))
@@ -50,7 +50,7 @@
     (and (foo? (val keyval)) keyval)))
 
 (def scalar-value? (make-foo-value? scalar?))
-(def non-null-scalar-value? (make-foo-value? non-null-scalar?))
+(def null-scalar-value? (make-foo-value? null-scalar?))
 (def coll-value? (make-foo-value? a-coll?))
 (def map-value? (make-foo-value? a-map?))
 (def empty-value? (make-foo-value? an-empty?))
@@ -61,11 +61,17 @@
                  :key-extractor key
                  :value-extractor val)))
 
+(defn remove-foos [foo-value?]
+  (fn [some-map]
+    (extract-map (remove foo-value? some-map)
+                 :key-extractor key
+                 :value-extractor val)))
+
 (def filter-scalars (filter-foos scalar-value?))
-(def filter-non-null-scalars (filter-foos non-null-scalar-value?))
 (def filter-maps (filter-foos #(and (map-value? %) (not (empty-value? %)))))
 (def filter-colls (filter-foos #(and (coll-value? %) (not (empty-value? %)))))
 (def filter-empties (filter-foos empty-value?))
+(def remove-null-scalars (remove-foos null-scalar-value?))
 
 (defn hoist-empties [some-map empties]
   (extract-map empties
@@ -136,9 +142,7 @@
         empty-hoisted (hoist-empties scalar-map (filter-empties some-map))
         map-hoisted (hoist-maps empty-hoisted (filter-maps some-map) key-joiner)
         coll-hoisted (hoist-colls map-hoisted (filter-colls some-map) coll-key-maker)]
-    (if remove-nulls?
-        (map filter-non-null-scalars coll-hoisted)
-        coll-hoisted)))
+    coll-hoisted))
 
 (defn denormal? [some-map]
   (every scalar-value? some-map))
@@ -169,7 +173,10 @@
      (loop [normal-maps (list some-map)
             denormal-maps (list)]
        (if (empty? normal-maps)
-         denormal-maps
+         ;; at the end, if we need to remove nulls, do it
+         (if remove-nulls?
+           (map remove-null-scalars denormal-maps)
+           denormal-maps)
          (let [denormalized-maps
                (mapcat #(hoist-complexity % key-joiner coll-key-maker remove-nulls?)
                        normal-maps)]
