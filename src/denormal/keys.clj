@@ -16,6 +16,7 @@
 (defn make-simple-key-joiner [path-separator]
   (SimpleKeyJoiner. path-separator))
 
+
 ;; # HoistKeyJoiner
 ;; When this is used for denoramlization,
 ;; it will effectivily hoist a deep property
