@@ -135,7 +135,7 @@
       results)))
 
 
-                                              
+
 ;; returns a list of maps simplified by one level
 (defn hoist-complexity [some-map key-joiner coll-key-maker remove-nulls?]
   (let [scalar-map (filter-scalars some-map)
@@ -169,7 +169,7 @@
                       key-joiner
                       default-collection-key-maker
                       default-remove-nulls?))
-  ([some-map key-joiner coll-key-maker remove-nulls?]  
+  ([some-map key-joiner coll-key-maker remove-nulls?]
      (loop [normal-maps (list some-map)
             denormal-maps (list)]
        (if (empty? normal-maps)
